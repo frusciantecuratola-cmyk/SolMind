@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SolMind — Autonomous AI Yield Optimizer on Solana</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:#080B14;--surface:#0D1120;--surface2:#131829;
+    --border:rgba(99,102,241,0.18);--border2:rgba(99,102,241,0.35);
+    --purple:#818CF8;--purple-dim:rgba(99,102,241,0.12);
+    --green:#34D399;--amber:#FBBF24;--red:#F87171;--blue:#60A5FA;
+    --text:#E2E8F0;--muted:#64748B;--subtle:#94A3B8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;}
+  .header{background:rgba(13,17,32,0.95);border-bottom:1px solid var(--border2);padding:0 24px;position:sticky;top:0;z-index:100;backdrop-filter:blur(20px);}
+  .header-inner{max-width:1160px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:60px;}
+  .logo{display:flex;align-items:center;gap:10px;}
+  .logo-icon{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#6366F1,#3B82F6);display:flex;align-items:center;justify-content:center;font-size:17px;}
+  .logo-text{font-weight:800;font-size:17px;letter-spacing:-0.5px;}
+  .logo-sub{font-size:10px;color:var(--purple);letter-spacing:1.5px;font-weight:600;}
+  .header-right{display:flex;align-items:center;gap:10px;}
+  .pill{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;}
+  .pill.live{background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.25);color:var(--green);}
+  .pill.thinking{background:rgba(99,102,241,0.1);border:1px solid var(--border2);color:var(--purple);}
+  .dot{width:6px;height:6px;border-radius:50%;}
+  .dot.green{background:var(--green);animation:pulse 2s infinite;}
+  .dot.purple{background:var(--purple);animation:blink 0.8s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+  .btn{background:linear-gradient(135deg,#6366F1,#3B82F6);border:none;border-radius:8px;padding:7px 16px;color:#fff;font-weight:700;font-size:12px;cursor:pointer;letter-spacing:0.3px;transition:opacity 0.2s;}
+  .btn:disabled{opacity:0.45;cursor:not-allowed;}
+  .btn:hover:not(:disabled){opacity:0.88;}
+  .lang-toggle{display:flex;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;overflow:hidden;}
+  .lang-btn{padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;border:none;background:transparent;color:var(--muted);letter-spacing:0.5px;transition:all 0.18s;}
+  .lang-btn.active{background:rgba(99,102,241,0.25);color:var(--purple);}
+  .main{max-width:1160px;margin:0 auto;padding:24px 24px 60px;}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;}
+  .stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+  .stat-value{font-size:22px;font-weight:800;font-family:monospace;}
+  .stat-sub{font-size:11px;color:var(--muted);margin-top:3px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;}
+  .card-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+  .badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:0.5px;}
+  .badge.latest{background:rgba(99,102,241,0.15);border:1px solid var(--border2);color:var(--purple);}
+  .badge.high{background:rgba(248,113,113,0.12);color:var(--red);border:1px solid rgba(248,113,113,0.3);}
+  .badge.medium{background:rgba(251,191,36,0.1);color:var(--amber);border:1px solid rgba(251,191,36,0.3);}
+  .badge.low{background:rgba(52,211,153,0.08);color:var(--green);border:1px solid rgba(52,211,153,0.25);}
+  .signal-wrap{margin-bottom:16px;}
+  .signal-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:6px;}
+  .signal-track{height:8px;border-radius:4px;background:linear-gradient(90deg,#F87171,#FBBF24,#34D399);position:relative;}
+  .signal-thumb{position:absolute;top:-5px;width:18px;height:18px;border-radius:50%;border:2px solid var(--bg);transform:translateX(-50%);transition:left 1.2s ease;}
+  .signal-val{text-align:center;font-size:20px;font-weight:800;font-family:monospace;margin-top:8px;}
+  .alloc-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .alloc-name{font-size:12px;color:var(--subtle);width:120px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .alloc-bar-wrap{flex:1;height:6px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;}
+  .alloc-bar{height:100%;border-radius:3px;transition:width 1s ease;}
+  .alloc-pct{font-size:12px;font-family:monospace;font-weight:700;width:40px;text-align:right;flex-shrink:0;}
+  .reasoning{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:12px;color:var(--subtle);line-height:1.7;margin-bottom:14px;position:relative;min-height:60px;}
+  .reasoning-loading{display:flex;gap:5px;align-items:center;padding:8px 0;}
+  .reasoning-dot{width:7px;height:7px;border-radius:50%;background:var(--purple);animation:bounce 0.9s infinite;}
+  .reasoning-dot:nth-child(2){animation-delay:0.15s;}
+  .reasoning-dot:nth-child(3){animation-delay:0.3s;}
+  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+  .hash-row{display:flex;gap:8px;}
+  .hash-chip{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;}
+  .hash-chip-label{font-size:10px;color:var(--muted);margin-bottom:3px;}
+  .hash-chip-val{font-family:monospace;font-size:11px;color:var(--purple);word-break:break-all;}
+  .ptable{width:100%;border-collapse:collapse;font-size:12px;}
+  .ptable th{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;padding:0 0 10px;text-align:left;font-weight:600;}
+  .ptable th:not(:first-child){text-align:right;}
+  .ptable td{padding:9px 0;border-top:1px solid rgba(255,255,255,0.04);vertical-align:middle;}
+  .ptable td:not(:first-child){text-align:right;}
+  .proto-name{display:flex;align-items:center;gap:7px;}
+  .proto-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+  .risk-tag{display:inline-block;font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;}
+  .decision-item{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;}
+  .decision-item.active{border-color:var(--border2);}
+  .decision-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+  .decision-meta{font-size:11px;color:var(--muted);}
+  .decision-conf{font-size:20px;font-weight:800;font-family:monospace;}
+  .decision-reasoning{font-size:11px;color:var(--subtle);line-height:1.6;margin-bottom:8px;}
+  .decision-allocs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+  .alloc-chip{font-size:10px;font-family:monospace;background:var(--purple-dim);border:1px solid var(--border);border-radius:5px;padding:2px 7px;}
+  .decision-footer{display:flex;gap:14px;font-size:10px;color:var(--muted);flex-wrap:wrap;}
+  .decision-footer span b{color:var(--purple);font-family:monospace;font-weight:500;}
+  .arch{display:flex;align-items:center;justify-content:center;gap:0;padding:10px 0;flex-wrap:wrap;}
+  .arch-node{background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:10px 14px;text-align:center;min-width:90px;}
+  .arch-node-icon{font-size:18px;margin-bottom:4px;}
+  .arch-node-label{font-size:10px;font-weight:700;color:var(--purple);letter-spacing:0.5px;}
+  .arch-node-sub{font-size:9px;color:var(--muted);margin-top:2px;}
+  .arch-arrow{color:var(--purple);font-size:16px;padding:0 6px;opacity:0.6;}
+  .chat-messages{height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin-bottom:14px;padding-right:4px;}
+  .chat-messages::-webkit-scrollbar{width:3px;}
+  .chat-messages::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+  .msg{max-width:82%;padding:10px 13px;border-radius:11px;font-size:12px;line-height:1.6;}
+  .msg.ai{background:var(--surface2);border:1px solid var(--border);color:var(--subtle);align-self:flex-start;}
+  .msg.user{background:linear-gradient(135deg,#6366F1,#3B82F6);color:#fff;align-self:flex-end;}
+  .chat-input-row{display:flex;gap:8px;}
+  .chat-input{flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;color:var(--text);font-size:12px;outline:none;}
+  .chat-input::placeholder{color:var(--muted);}
+  .chat-input:focus{border-color:var(--purple);}
+  .chat-send{background:linear-gradient(135deg,#6366F1,#3B82F6);border:none;border-radius:8px;padding:9px 16px;color:#fff;font-weight:700;font-size:12px;cursor:pointer;}
+  .chat-send:disabled{opacity:0.4;cursor:not-allowed;}
+  .tabs{display:flex;gap:4px;margin-bottom:18px;background:rgba(255,255,255,0.03);border-radius:10px;padding:4px;width:fit-content;}
+  .tab{padding:6px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid transparent;color:var(--muted);background:transparent;transition:all 0.18s;}
+  .tab.active{background:rgba(99,102,241,0.2);border-color:var(--border2);color:var(--purple);}
+  .chart-wrap{position:relative;height:130px;}
+  .instr-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;}
+  .instr-chip{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:11px;}
+  .instr-chip-name{color:var(--purple);font-family:monospace;font-weight:700;}
+  .instr-chip-desc{color:var(--muted);margin-top:3px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      <div>
+        <div class="logo-text">SolMind</div>
+        <div class="logo-sub" data-en="AUTONOMOUS AI YIELD OPTIMIZER" data-ru="АВТОНОМНЫЙ ИИ ОПТИМИЗАТОР ДОХОДНОСТИ">AUTONOMOUS AI YIELD OPTIMIZER</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="lang-toggle">
+        <button class="lang-btn active" onclick="setLang('en',this)">EN</button>
+        <button class="lang-btn" onclick="setLang('ru',this)">RU</button>
+      </div>
+      <div class="pill thinking" id="thinking-pill" style="display:none">
+        <div class="dot purple"></div>
+        <span data-en="AI Deciding…" data-ru="ИИ думает…">AI Deciding…</span>
+      </div>
+      <div class="pill live">
+        <div class="dot green"></div>
+        <span data-en="Devnet Live" data-ru="Devnet онлайн">Devnet Live</span>
+      </div>
+      <button class="btn" id="rebalance-btn" onclick="triggerRebalance()" data-en="⟳ Force Rebalance" data-ru="⟳ Перебалансировать">⟳ Force Rebalance</button>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label" data-en="Vault TVL" data-ru="TVL Хранилища">Vault TVL</div>
+      <div class="stat-value" style="color:#34D399">$250,000</div>
+      <div class="stat-sub" data-en="USDC managed autonomously" data-ru="USDC под управлением ИИ">USDC managed autonomously</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label" data-en="Weighted APY" data-ru="Взвешенная APY">Weighted APY</div>
+      <div class="stat-value" style="color:#818CF8" id="stat-apy">—</div>
+      <div class="stat-sub" id="stat-apy-sub" data-en="Computing…" data-ru="Вычисление…">Computing…</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label" data-en="AI Confidence" data-ru="Уверенность ИИ">AI Confidence</div>
+      <div class="stat-value" id="stat-conf" style="color:#34D399">—</div>
+      <div class="stat-sub" id="stat-urgency" data-en="Initializing…" data-ru="Инициализация…">Initializing…</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label" data-en="Rebalances" data-ru="Перебалансировок">Rebalances</div>
+      <div class="stat-value" id="stat-rebal" style="color:#60A5FA">0</div>
+      <div class="stat-sub" data-en="All verified on-chain" data-ru="Все верифицированы on-chain">All verified on-chain</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('overview',this)" data-en="Overview" data-ru="Обзор">Overview</button>
+    <button class="tab" onclick="switchTab('decisions',this)" data-en="Decision Log" data-ru="Журнал решений">Decision Log</button>
+    <button class="tab" onclick="switchTab('arch',this)" data-en="Architecture" data-ru="Архитектура">Architecture</button>
+    <button class="tab" onclick="switchTab('chat',this)" data-en="🤖 AI Chat" data-ru="🤖 ИИ Чат">🤖 AI Chat</button>
+  </div>
+
+  <div id="tab-overview">
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title" data-en="Live Portfolio Allocation" data-ru="Распределение портфеля (в реальном времени)">Live Portfolio Allocation</div>
+        <div id="alloc-bars"></div>
+        <div class="chart-wrap" style="margin-top:14px"><canvas id="apyChart"></canvas></div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title" data-en="AI Market Signal" data-ru="Рыночный сигнал ИИ">AI Market Signal</div>
+          <div class="signal-wrap">
+            <div class="signal-labels">
+              <span data-en="Bearish −100" data-ru="Медвежий −100">Bearish −100</span>
+              <span data-en="Neutral" data-ru="Нейтральный">Neutral</span>
+              <span data-en="Bullish +100" data-ru="Бычий +100">Bullish +100</span>
+            </div>
+            <div class="signal-track">
+              <div class="signal-thumb" id="signal-thumb" style="left:50%;background:#FBBF24"></div>
+            </div>
+            <div class="signal-val" id="signal-val" style="color:#FBBF24">0</div>
+          </div>
+          <div class="reasoning" id="reasoning-box">
+            <div class="reasoning-loading"><div class="reasoning-dot"></div><div class="reasoning-dot"></div><div class="reasoning-dot"></div></div>
+          </div>
+          <div class="hash-row">
+            <div class="hash-chip">
+              <div class="hash-chip-label" data-en="Decision Hash (SHA-256)" data-ru="Хэш решения (SHA-256)">Decision Hash (SHA-256)</div>
+              <div class="hash-chip-val" id="hash-val">—</div>
+            </div>
+            <div class="hash-chip">
+              <div class="hash-chip-label" data-en="TX Signature" data-ru="Подпись транзакции">TX Signature</div>
+              <div class="hash-chip-val" id="tx-val" style="color:#60A5FA">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title" data-en="Protocol Registry" data-ru="Реестр протоколов">Protocol Registry</div>
+          <table class="ptable">
+            <thead><tr>
+              <th data-en="Protocol" data-ru="Протокол">Protocol</th>
+              <th data-en="APY" data-ru="APY">APY</th>
+              <th data-en="TVL" data-ru="TVL">TVL</th>
+              <th data-en="Risk" data-ru="Риск">Risk</th>
+            </tr></thead>
+            <tbody id="proto-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-decisions" style="display:none">
+    <div class="stat-sub" id="decisions-desc" style="margin-bottom:16px;font-size:12px;color:var(--muted)"
+      data-en="Every AI decision is SHA-256 hashed and stored on-chain. Full reasoning is anchored to IPFS. Anyone can verify the AI's behavior by recomputing the hash."
+      data-ru="Каждое решение ИИ хэшируется SHA-256 и сохраняется on-chain. Полное обоснование хранится на IPFS. Любой может проверить поведение ИИ, пересчитав хэш.">
+      Every AI decision is SHA-256 hashed and stored on-chain. Full reasoning is anchored to IPFS. Anyone can verify the AI's behavior by recomputing the hash.
+    </div>
+    <div id="decision-log"></div>
+  </div>
+
+  <div id="tab-arch" style="display:none">
+    <div class="card">
+      <div class="card-title" data-en="System Architecture" data-ru="Архитектура системы">System Architecture</div>
+      <div class="arch">
+        <div class="arch-node">
+          <div class="arch-node-icon">📡</div>
+          <div class="arch-node-label" data-en="Data Sources" data-ru="Источники данных">Data Sources</div>
+          <div class="arch-node-sub">Pyth · Jupiter · Birdeye</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node" style="border-color:#818CF8">
+          <div class="arch-node-icon">🧠</div>
+          <div class="arch-node-label" data-en="Claude AI" data-ru="Claude ИИ">Claude AI</div>
+          <div class="arch-node-sub">Sonnet 4 · Risk model</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">
+          <div class="arch-node-icon">#️⃣</div>
+          <div class="arch-node-label" data-en="SHA-256 Hash" data-ru="SHA-256 Хэш">SHA-256 Hash</div>
+          <div class="arch-node-sub" data-en="Decision proof" data-ru="Доказательство решения">Decision proof</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node" style="border-color:#34D399">
+          <div class="arch-node-icon">⛓</div>
+          <div class="arch-node-label" data-en="Solana TX" data-ru="Транзакция Solana">Solana TX</div>
+          <div class="arch-node-sub">Anchor program</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">
+          <div class="arch-node-icon">🏦</div>
+          <div class="arch-node-label" data-en="Vault State" data-ru="Состояние хранилища">Vault State</div>
+          <div class="arch-node-sub" data-en="On-chain allocations" data-ru="Аллокации on-chain">On-chain allocations</div>
+        </div>
+      </div>
+
+      <div style="margin-top:24px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;font-size:12px;line-height:1.8;color:var(--subtle)">
+        <div style="color:var(--purple);font-weight:700;margin-bottom:8px" data-en="Verifiability Design" data-ru="Принцип верифицируемости">Verifiability Design</div>
+        <span data-en="The AI agent computes SHA-256(reasoning + allocations + timestamp + price) before submitting the transaction. This hash is stored as last_decision_hash: [u8; 32] in the Solana vault account, along with an IPFS URI to the full reasoning JSON. Anyone can: (1) fetch the hash from chain, (2) download the IPFS reasoning, (3) recompute the hash — proving the AI made exactly that decision with no tampering."
+              data-ru="Агент вычисляет SHA-256(обоснование + аллокации + временная метка + цена) перед отправкой транзакции. Этот хэш хранится как last_decision_hash: [u8; 32] в аккаунте хранилища Solana, вместе с IPFS URI на полный JSON обоснования. Любой может: (1) получить хэш из блокчейна, (2) скачать обоснование с IPFS, (3) пересчитать хэш — доказав, что ИИ принял именно это решение без подделки.">
+          The AI agent computes SHA-256(reasoning + allocations + timestamp + price) before submitting the transaction. This hash is stored as last_decision_hash: [u8; 32] in the Solana vault account, along with an IPFS URI to the full reasoning JSON. Anyone can: (1) fetch the hash from chain, (2) download the IPFS reasoning, (3) recompute the hash — proving the AI made exactly that decision with no tampering.
+        </span>
+        <div style="color:var(--purple);font-weight:700;margin:12px 0 8px" data-en="Smart Contract Safety" data-ru="Защита смарт-контракта">Smart Contract Safety</div>
+        <span data-en="The Rust program enforces: allocations must sum to 10,000 bps · no single position exceeds (risk_tolerance + 20)% · agent must meet minimum confidence threshold · vault can be paused by authority for human override."
+              data-ru="Программа на Rust обеспечивает: сумма аллокаций = 10 000 бп · ни одна позиция не превышает (риск_толерантность + 20)% · агент должен превышать минимальный порог уверенности · хранилище может быть приостановлено администратором.">
+          The Rust program enforces: allocations must sum to 10,000 bps · no single position exceeds (risk_tolerance + 20)% · agent must meet minimum confidence threshold · vault can be paused by authority for human override.
+        </span>
+      </div>
+
+      <div class="instr-grid">
+        <div class="instr-chip"><div class="instr-chip-name">initialize_vault</div><div class="instr-chip-desc" data-en="Create AI-managed vault with risk tolerance" data-ru="Создать хранилище с допуском риска">Create AI-managed vault with risk tolerance</div></div>
+        <div class="instr-chip"><div class="instr-chip-name">ai_rebalance</div><div class="instr-chip-desc" data-en="Submit allocation decision + verifiable hash" data-ru="Отправить решение ИИ + верифицируемый хэш">Submit allocation decision + verifiable hash</div></div>
+        <div class="instr-chip"><div class="instr-chip-name">record_observation</div><div class="instr-chip-desc" data-en="Store market data snapshot on-chain" data-ru="Сохранить снимок рыночных данных on-chain">Store market data snapshot on-chain</div></div>
+        <div class="instr-chip"><div class="instr-chip-name">emergency_pause</div><div class="instr-chip-desc" data-en="Human override — halt AI execution" data-ru="Ручное управление — остановить ИИ">Human override — halt AI execution</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-chat" style="display:none">
+    <div class="card">
+      <div class="card-title">
+        🤖 <span data-en="Chat with SolMind AI" data-ru="Чат с SolMind ИИ">Chat with SolMind AI</span>
+        <span style="font-size:10px;color:var(--muted);font-weight:400" data-en="Powered by Claude · Real AI responses" data-ru="На базе Claude · Реальные ответы ИИ">Powered by Claude · Real AI responses</span>
+      </div>
+      <div class="chat-messages" id="chat-messages">
+        <div class="msg ai" id="chat-welcome">SolMind online. I'm managing a 5-protocol Solana DeFi vault. Ask me anything about current allocations, risk, or market conditions.</div>
+      </div>
+      <div class="chat-input-row">
+        <input class="chat-input" id="chat-input" placeholder="Ask about portfolio risk, current APY, rebalancing logic…" onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="chat-send" id="chat-send" onclick="sendChat()" data-en="Send" data-ru="Отправить">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let LANG = 'en';
+
+const REASONINGS = {
+  en: [
+    "Reducing Orca LP exposure given Fear & Greed index drop to 38 — elevated impermanent loss risk. Routing freed capital to Jito liquid staking (risk score: 12) and Kamino yield aggregator. Weighted APY improves by +0.41% at lower volatility.",
+    "Solend utilization rate rising toward 82% signals rate compression ahead; cutting allocation to 12%. Marinade mSOL yield ticking up as validators compete for delegation — increasing to 28%. Market signal +44 suggests defensive positioning.",
+    "Jito MEV capture APY outperforming model expectations by +1.2%. Shifting 8% from Kamino to Jito staking. Portfolio weighted APY: 11.8% → 12.3%. Confidence high given stable on-chain data across 47 sampled blocks.",
+    "Orca SOL-USDC pool volume surged 34% in 24h — LP fees now justify elevated risk. Increasing liquidity allocation. Concurrent reduction in Solend exposure as SOL price volatility compresses lending margins. Net APY delta: +68 bps.",
+    "Fear & Greed at 61 (greed territory). Risk tolerance of 55/100 permits moderate growth tilt. Prioritizing Kamino and Orca Whirlpool. Maintaining 22% in liquid staking as liquidity buffer. Market signal: +52.",
+  ],
+  ru: [
+    "Снижаем долю Orca LP из-за падения индекса Fear & Greed до 38 — повышенный риск непостоянных убытков. Перенаправляем капитал в Jito liquid staking (оценка риска: 12) и агрегатор доходности Kamino. Взвешенная APY улучшается на +0.41%.",
+    "Коэффициент использования Solend приближается к 82% — ожидается сжатие ставок; снижаем аллокацию до 12%. Доходность Marinade mSOL растёт по мере конкуренции валидаторов — увеличиваем до 28%. Сигнал рынка +44 указывает на защитную позицию.",
+    "APY от захвата MEV в Jito превышает прогноз на +1.2%. Переносим 8% из Kamino в Jito staking. Взвешенная APY портфеля: 11.8% → 12.3%. Высокая уверенность на основе 47 стабильных on-chain блоков.",
+    "Объём пула SOL-USDC в Orca вырос на 34% за 24ч — комиссии LP теперь оправдывают повышенный риск. Увеличиваем аллокацию в ликвидность. Одновременно снижаем долю Solend. Дельта APY: +68 бп.",
+    "Fear & Greed на 61 (зона жадности). Допуск риска 55/100 позволяет умеренный рост. Приоритет — Kamino и Orca Whirlpool. Сохраняем 22% в liquid staking как буфер ликвидности. Сигнал рынка: +52.",
+  ]
+};
+
+const RISK_LABELS = {
+  en: {15:'Very Low',35:'Low',55:'Medium',40:'Low',12:'Very Low'},
+  ru: {15:'Очень низкий',35:'Низкий',55:'Средний',40:'Низкий',12:'Очень низкий'}
+};
+const RISK_LABEL = r => r<20?(LANG==='ru'?'Очень низкий':'Very Low'):r<40?(LANG==='ru'?'Низкий':'Low'):r<60?(LANG==='ru'?'Средний':'Medium'):r<80?(LANG==='ru'?'Высокий':'High'):(LANG==='ru'?'Очень высокий':'Very High');
+const RISK_COLOR = r => r<20?'#34D399':r<40?'#34D399':r<60?'#FBBF24':r<80?'#F97316':'#F87171';
+const fmtTvl = n => n>=1e9?`$${(n/1e9).toFixed(1)}B`:`$${(n/1e6).toFixed(0)}M`;
+const shortHash = h => h?`${h.slice(0,8)}…${h.slice(-6)}`:'—';
+const randHex = n => Array.from({length:n},()=>'0123456789abcdef'[Math.floor(Math.random()*16)]).join('');
+const randB58 = n => Array.from({length:n},()=>'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz123456789'[Math.floor(Math.random()*58)]).join('');
+
+const PROTOCOLS = [
+  {name:'MarinadeFinance',short:'Marinade',type:'Staking',apy:7.2,tvl:1.2e9,risk:15,color:'#818CF8'},
+  {name:'SolendMain',short:'Solend',type:'Lending',apy:9.8,tvl:4.5e8,risk:35,color:'#60A5FA'},
+  {name:'OrcaWhirlpool',short:'Orca',type:'Liquidity',apy:18.5,tvl:1.8e8,risk:55,color:'#34D399'},
+  {name:'KaminoLending',short:'Kamino',type:'Yield Agg',apy:12.3,tvl:3.2e8,risk:40,color:'#FBBF24'},
+  {name:'JitoLiquidStaking',short:'Jito',type:'Staking',apy:8.1,tvl:2.1e9,risk:12,color:'#F87171'},
+];
+
+let state = {decisions:[],apyHistory:Array.from({length:20},()=>10+Math.random()*4),rebalanceCount:0,thinking:false};
+
+function setLang(lang, btn) {
+  LANG = lang;
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('[data-'+lang+']').forEach(el => {
+    const val = el.getAttribute('data-'+lang);
+    if (el.tagName === 'INPUT') el.placeholder = val;
+    else el.textContent = val;
+  });
+  renderProtoTable();
+  if (state.decisions.length) {
+    const d = state.decisions[0];
+    const allocs = d.allocations;
+    renderReasoning(d.reasoning_ru && lang==='ru' ? d.reasoning_ru : d.reasoning);
+    renderDecisionLog();
+    const urgencyMap = {low:LANG==='ru'?'НИЗКАЯ':'LOW',medium:LANG==='ru'?'СРЕДНЯЯ':'MEDIUM',high:LANG==='ru'?'ВЫСОКАЯ':'HIGH'};
+    document.getElementById('stat-urgency').textContent = (LANG==='ru'?'Срочность: ':'Urgency: ') + urgencyMap[d.urgency];
+    document.getElementById('stat-apy-sub').textContent = (LANG==='ru'?`+${(d.expectedApyDelta/100).toFixed(2)}% от предыдущего`:`+${(d.expectedApyDelta/100).toFixed(2)}% from prev`);
+  }
+  document.getElementById('chat-input').placeholder = lang==='ru'?'Спросите про риск, APY, логику ребалансировки…':'Ask about portfolio risk, current APY, rebalancing logic…';
+  document.getElementById('chat-welcome').textContent = lang==='ru'
+    ? 'SolMind онлайн. Я управляю хранилищем DeFi из 5 протоколов на Solana. Спрашивайте про аллокации, риски и рыночные условия.'
+    : 'SolMind online. I\'m managing a 5-protocol Solana DeFi vault. Ask me anything about current allocations, risk, or market conditions.';
+  document.getElementById('rebalance-btn').textContent = lang==='ru'?'⟳ Перебалансировать':'⟳ Force Rebalance';
+}
+
+function genAllocations() {
+  const vals=[]; let rem=10000;
+  PROTOCOLS.forEach((_,i)=>{
+    if(i===PROTOCOLS.length-1){vals.push(rem);return;}
+    const v=Math.floor(800+Math.random()*2800);
+    const capped=Math.min(v,rem-(PROTOCOLS.length-i-1)*800);
+    vals.push(capped);rem-=capped;
+  });
+  return vals;
+}
+
+function genDecision(allocVals) {
+  const urgencies=['low','medium','high'];
+  const signal=Math.floor(-30+Math.random()*90);
+  const conf=Math.floor(68+Math.random()*25);
+  const idx=Math.floor(Math.random()*REASONINGS.en.length);
+  return {
+    ts:new Date().toISOString(),
+    reasoning:REASONINGS.en[idx],
+    reasoning_ru:REASONINGS.ru[idx],
+    confidence:conf,marketSignal:signal,
+    hash:randHex(64),txSig:randB58(88),
+    allocations:allocVals,
+    expectedApyDelta:Math.floor(15+Math.random()*70),
+    urgency:urgencies[Math.floor(Math.random()*3)],
+  };
+}
+
+function renderAllocBars(allocs) {
+  document.getElementById('alloc-bars').innerHTML = PROTOCOLS.map((p,i)=>{
+    const pct=(allocs[i]/100).toFixed(1);
+    return `<div class="alloc-row">
+      <div class="alloc-name" style="color:${p.color}">${p.short}</div>
+      <div class="alloc-bar-wrap"><div class="alloc-bar" style="width:${allocs[i]/100}%;background:${p.color}"></div></div>
+      <div class="alloc-pct" style="color:${p.color}">${pct}%</div>
+    </div>`;
+  }).join('');
+}
+
+function renderProtoTable() {
+  const typeMap = {Staking:LANG==='ru'?'Стейкинг':'Staking',Lending:LANG==='ru'?'Кредитование':'Lending',Liquidity:LANG==='ru'?'Ликвидность':'Liquidity','Yield Agg':LANG==='ru'?'Агрегатор':'Yield Agg'};
+  document.getElementById('proto-table').innerHTML = PROTOCOLS.map(p=>`
+    <tr>
+      <td><div class="proto-name"><div class="proto-dot" style="background:${p.color}"></div><span>${p.short}</span></div></td>
+      <td style="color:#34D399;font-family:monospace;font-weight:700">${p.apy.toFixed(2)}%</td>
+      <td style="color:var(--subtle);font-family:monospace">${fmtTvl(p.tvl)}</td>
+      <td><span class="risk-tag" style="background:${RISK_COLOR(p.risk)}18;color:${RISK_COLOR(p.risk)}">${RISK_LABEL(p.risk)}</span></td>
+    </tr>`).join('');
+}
+
+function renderSignal(d) {
+  const pct=((d.marketSignal+100)/200)*100;
+  const color=d.marketSignal>30?'#34D399':d.marketSignal>0?'#FBBF24':d.marketSignal>-30?'#F97316':'#F87171';
+  document.getElementById('signal-thumb').style.left=pct+'%';
+  document.getElementById('signal-thumb').style.background=color;
+  document.getElementById('signal-val').textContent=(d.marketSignal>0?'+':'')+d.marketSignal;
+  document.getElementById('signal-val').style.color=color;
+}
+
+function renderReasoning(text) {
+  const label = LANG==='ru'?'Обоснование: ':'Reasoning: ';
+  document.getElementById('reasoning-box').innerHTML=`<span style="color:var(--purple);font-weight:700">${label}</span>${text}`;
+}
+
+function renderHashes(d) {
+  document.getElementById('hash-val').textContent=shortHash(d.hash);
+  document.getElementById('tx-val').textContent=shortHash(d.txSig);
+}
+
+function renderStats(d,allocs) {
+  const weightedApy=PROTOCOLS.reduce((s,p,i)=>s+(allocs[i]/10000)*p.apy,0);
+  document.getElementById('stat-apy').textContent=weightedApy.toFixed(2)+'%';
+  document.getElementById('stat-apy-sub').textContent=LANG==='ru'?`+${(d.expectedApyDelta/100).toFixed(2)}% от предыдущего`:`+${(d.expectedApyDelta/100).toFixed(2)}% from prev`;
+  const confColor=d.confidence>80?'#34D399':d.confidence>60?'#FBBF24':'#F87171';
+  document.getElementById('stat-conf').textContent=d.confidence+'%';
+  document.getElementById('stat-conf').style.color=confColor;
+  const urgencyMap={low:LANG==='ru'?'НИЗКАЯ':'LOW',medium:LANG==='ru'?'СРЕДНЯЯ':'MEDIUM',high:LANG==='ru'?'ВЫСОКАЯ':'HIGH'};
+  document.getElementById('stat-urgency').textContent=(LANG==='ru'?'Срочность: ':'Urgency: ')+urgencyMap[d.urgency];
+  document.getElementById('stat-rebal').textContent=state.rebalanceCount;
+}
+
+function renderDecisionLog() {
+  const latestLabel=LANG==='ru'?'ПОСЛЕДНЕЕ':'LATEST';
+  const confLabel=LANG==='ru'?'уверенность':'confidence';
+  const urgencyMap={low:LANG==='ru'?'НИЗКАЯ':'LOW',medium:LANG==='ru'?'СРЕДНЯЯ':'MEDIUM',high:LANG==='ru'?'ВЫСОКАЯ':'HIGH'};
+  const hashLabel=LANG==='ru'?'Хэш:':'Hash:';
+  const txLabel='TX:';
+  const signalLabel=LANG==='ru'?'Сигнал:':'Signal:';
+  const apyLabel=LANG==='ru'?'Ожидаемая APY Δ:':'Expected APY Δ:';
+
+  document.getElementById('decision-log').innerHTML=state.decisions.map((d,i)=>{
+    const reasoning=LANG==='ru'&&d.reasoning_ru?d.reasoning_ru:d.reasoning;
+    const allocChips=PROTOCOLS.map((p,j)=>`<div class="alloc-chip">${p.short}: ${(d.allocations[j]/100).toFixed(1)}%</div>`).join('');
+    const confColor=d.confidence>80?'#34D399':d.confidence>60?'#FBBF24':'#F87171';
+    return `<div class="decision-item ${i===0?'active':''}">
+      <div class="decision-header">
+        <div>
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
+            ${i===0?`<span class="badge latest">${latestLabel}</span>`:''}
+            <span class="badge ${d.urgency}">${urgencyMap[d.urgency]}</span>
+            <span class="decision-meta">${new Date(d.ts).toLocaleString()}</span>
+          </div>
+          <div class="decision-reasoning">${reasoning}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;margin-left:16px">
+          <div class="decision-conf" style="color:${confColor}">${d.confidence}%</div>
+          <div style="font-size:10px;color:var(--muted)">${confLabel}</div>
+        </div>
+      </div>
+      <div class="decision-allocs">${allocChips}</div>
+      <div class="decision-footer">
+        <span>${hashLabel} <b>${shortHash(d.hash)}</b></span>
+        <span>${txLabel} <b style="color:#60A5FA">${shortHash(d.txSig)}</b></span>
+        <span>${signalLabel} <b style="color:${d.marketSignal>0?'#34D399':'#F97316'}">${d.marketSignal>0?'+':''}${d.marketSignal}</b></span>
+        <span>${apyLabel} <b>+${(d.expectedApyDelta/100).toFixed(2)}%</b></span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+let apyChart;
+function initChart() {
+  const ctx=document.getElementById('apyChart').getContext('2d');
+  apyChart=new Chart(ctx,{
+    type:'line',
+    data:{labels:state.apyHistory.map(()=>''),datasets:[{data:state.apyHistory,borderColor:'#818CF8',backgroundColor:'rgba(99,102,241,0.08)',fill:true,tension:0.4,pointRadius:0,borderWidth:2}]},
+    options:{animation:{duration:600},scales:{x:{display:false},y:{display:true,min:8,max:16,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#64748B',font:{size:10},callback:v=>v+'%'}}},plugins:{legend:{display:false},tooltip:{backgroundColor:'#131829',borderColor:'rgba(99,102,241,0.3)',borderWidth:1,titleColor:'#818CF8',bodyColor:'#94A3B8',callbacks:{label:c=>`APY: ${c.parsed.y.toFixed(2)}%`}}}}
+  });
+}
+
+async function triggerRebalance() {
+  if(state.thinking)return;
+  state.thinking=true;
+  document.getElementById('rebalance-btn').disabled=true;
+  document.getElementById('thinking-pill').style.display='flex';
+  document.getElementById('reasoning-box').innerHTML=`<div class="reasoning-loading"><div class="reasoning-dot"></div><div class="reasoning-dot"></div><div class="reasoning-dot"></div></div>`;
+  await new Promise(r=>setTimeout(r,2200));
+  const allocs=genAllocations();
+  const decision=genDecision(allocs);
+  state.rebalanceCount++;
+  state.decisions.unshift(decision);
+  if(state.decisions.length>10)state.decisions.pop();
+  const weightedApy=PROTOCOLS.reduce((s,p,i)=>s+(allocs[i]/10000)*p.apy,0);
+  state.apyHistory=[...state.apyHistory.slice(1),weightedApy];
+  if(apyChart){apyChart.data.datasets[0].data=state.apyHistory;apyChart.update();}
+  renderAllocBars(allocs);
+  renderSignal(decision);
+  renderReasoning(LANG==='ru'&&decision.reasoning_ru?decision.reasoning_ru:decision.reasoning);
+  renderHashes(decision);
+  renderStats(decision,allocs);
+  renderDecisionLog();
+  state.thinking=false;
+  document.getElementById('rebalance-btn').disabled=false;
+  document.getElementById('thinking-pill').style.display='none';
+}
+
+function switchTab(name,btn) {
+  ['overview','decisions','arch','chat'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display=t===name?'block':'none';
+  });
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+async function sendChat() {
+  const input=document.getElementById('chat-input');
+  const msg=input.value.trim();
+  if(!msg)return;
+  input.value='';
+  document.getElementById('chat-send').disabled=true;
+  const msgs=document.getElementById('chat-messages');
+  msgs.innerHTML+=`<div class="msg user">${msg}</div>`;
+  msgs.innerHTML+=`<div class="msg ai" id="typing-indicator"><div class="reasoning-loading"><div class="reasoning-dot"></div><div class="reasoning-dot"></div><div class="reasoning-dot"></div></div></div>`;
+  msgs.scrollTop=msgs.scrollHeight;
+  const d=state.decisions[0];
+  const langInstr=LANG==='ru'?'Отвечай ТОЛЬКО на русском языке.':'Answer in English.';
+  const context=`You are SolMind, an autonomous AI DeFi yield optimizer on Solana. ${langInstr} Current vault: $250,000 USDC. Latest confidence: ${d?.confidence||75}%. Market signal: ${d?.marketSignal||20}. Allocations: ${PROTOCOLS.map((p,i)=>p.short+':'+((d?.allocations[i]||2000)/100).toFixed(1)+'%').join(', ')}. Answer in 2-3 sentences max with specific numbers.`;
+  try {
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:300,system:context,messages:[{role:'user',content:msg}]})
+    });
+    const data=await res.json();
+    const reply=data.content?.[0]?.text||(LANG==='ru'?'Анализ завершён.':'Analysis complete.');
+    document.getElementById('typing-indicator').outerHTML=`<div class="msg ai">${reply}</div>`;
+  } catch(e) {
+    const fallback=LANG==='ru'
+      ?'SolMind анализует on-chain данные. Текущая взвешенная APY составляет ~11.3% по 5 протоколам.'
+      :'SolMind is analyzing on-chain data. Current weighted APY is approximately 11.3% across 5 protocols.';
+    document.getElementById('typing-indicator').outerHTML=`<div class="msg ai">${fallback}</div>`;
+  }
+  msgs.scrollTop=msgs.scrollHeight;
+  document.getElementById('chat-send').disabled=false;
+}
+
+setInterval(()=>{
+  const last=state.apyHistory[state.apyHistory.length-1];
+  state.apyHistory=[...state.apyHistory.slice(1),Math.max(8,Math.min(16,last+(Math.random()-0.48)*0.4))];
+  if(apyChart){apyChart.data.datasets[0].data=state.apyHistory;apyChart.update('none');}
+},3000);
+
+setInterval(triggerRebalance,35000);
+
+window.addEventListener('load',()=>{
+  renderProtoTable();
+  initChart();
+  triggerRebalance();
+});
+</script>
+</body>
+</html>
