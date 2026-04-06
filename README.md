@@ -1,10 +1,8 @@
-# ⚡ SolMind — Autonomous AI Yield Optimizer on Solana
+## SolMind — Autonomous AI Yield Optimizer on Solana
 
 > **National Solana Hackathon by Decentrathon** | Track: AI + Blockchain: Autonomous Smart Contracts
 
----
-
-## 🧠 What is SolMind?
+## What is SolMind?
 
 SolMind is a **fully autonomous DeFi portfolio management system** where an AI agent (Claude) continuously analyzes on-chain market conditions and executes rebalancing decisions — all verifiable on the Solana blockchain.
 
@@ -18,7 +16,7 @@ Market Data → Claude AI Analysis → Decision Hash → Solana Transaction → 
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -48,7 +46,7 @@ Market Data → Claude AI Analysis → Decision Hash → Solana Transaction → 
 
 ---
 
-## ✅ How it meets the requirements
+## How it meets the requirements
 
 | Requirement | Implementation |
 |-------------|----------------|
@@ -61,7 +59,7 @@ Market Data → Claude AI Analysis → Decision Hash → Solana Transaction → 
 
 ---
 
-## 🔒 Verifiability Design
+## Verifiability Design
 
 Every AI decision is **cryptographically anchored on-chain**:
 
@@ -87,7 +85,7 @@ Anyone can:
 
 ---
 
-## 🤖 AI Decision Framework
+## AI Decision Framework
 
 Claude receives a structured prompt with:
 - Current vault state (risk tolerance, existing allocations, TVL)
@@ -114,7 +112,7 @@ And outputs:
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 solmind/
@@ -145,9 +143,7 @@ solmind/
 └── README.md
 ```
 
----
-
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Rust + Anchor CLI (`cargo install --git https://github.com/coral-xyz/anchor anchor-cli`)
@@ -187,17 +183,13 @@ npm install && npm run dev
 # Open http://localhost:5173
 ```
 
----
-
-## 🌍 Real-World Applicability
+## Real-World Applicability
 
 - **Asset Managers**: Institutional DeFi portfolios managed autonomously
 - **DAOs**: Treasury rebalancing without manual governance proposals
 - **Retail Users**: Set risk tolerance once, AI does the rest
 - **Audit Firms**: On-chain hash proves AI behavior — no black box
 
----
-
-## 📜 License
+## License
 
 MIT — Built for National Solana Hackathon by Decentrathon 2026
